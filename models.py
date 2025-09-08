@@ -11,9 +11,8 @@ def _connect_sqlite(path: str):
     return conn
 
 def _connect_postgres(dsn: str):
-    # Se importa acá para no requerir psycopg2 en local si no hace falta
-    import psycopg2
-    import psycopg2.extras
+    import psycopg
+    from psycopg.rows import dict_row
 
     class _PgCursorAdapter:
         def __init__(self, cur): self._cur = cur
@@ -23,10 +22,10 @@ def _connect_postgres(dsn: str):
     class _PgConnAdapter:
         def __init__(self, conn): self.conn = conn
         def execute(self, sql, params=()):
-            # Cambiamos placeholders SQLite (?) -> Postgres (%s) si hace falta
+            # Convertir placeholders de SQLite (?) -> Postgres (%s) si hace falta
             if "%s" not in sql:
                 sql = "%s".join(sql.split("?"))
-            cur = self.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cur = self.conn.cursor(row_factory=dict_row)
             cur.execute(sql, params or ())
             return _PgCursorAdapter(cur)
         def executescript(self, script: str):
@@ -39,7 +38,8 @@ def _connect_postgres(dsn: str):
         def commit(self): self.conn.commit()
         def close(self): self.conn.close()
 
-    return _PgConnAdapter(psycopg2.connect(dsn))
+    return _PgConnAdapter(psycopg.connect(dsn))
+
 
 def get_db():
     """Devuelve la conexión activa y setea g.db_kind = 'pg' | 'sqlite'."""
