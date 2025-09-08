@@ -290,12 +290,14 @@ def q_stock_by_brand(db):
 def q_top_sold_perfumes(db, limit=5):
     return db.execute(
         "SELECT p.name AS perfume, b.name AS brand, s.ml AS ml, "
-        "SUM(CASE WHEN m.delta < 0 THEN -m.delta ELSE 0 END) AS sold_qty "
+        "       SUM(CASE WHEN m.delta < 0 THEN -m.delta ELSE 0 END) AS sold_qty "
         "FROM stock_moves m "
-        "JOIN perfumes p ON p.id=m.perfume_id "
-        "JOIN brands b ON b.id=p.brand_id "
-        "JOIN sizes s ON s.id=p.size_id "
-        "GROUP BY p.id "
-        "ORDER BY sold_qty DESC LIMIT ?",
-        (limit,)
+        "JOIN perfumes p ON p.id = m.perfume_id "
+        "JOIN brands b   ON b.id = p.brand_id "
+        "JOIN sizes s    ON s.id = p.size_id "
+        "GROUP BY p.id, p.name, b.name, s.ml "
+        "ORDER BY sold_qty DESC "
+        "LIMIT ?",
+        (int(limit),)
     ).fetchall()
+
