@@ -21,20 +21,24 @@ def _connect_postgres(dsn: str):
 
     class _PgConnAdapter:
         def __init__(self, conn): self.conn = conn
+
         def execute(self, sql, params=()):
-            # Convertir placeholders de SQLite (?) -> Postgres (%s) si hace falta
             if "%s" not in sql:
                 sql = "%s".join(sql.split("?"))
             cur = self.conn.cursor(row_factory=dict_row)
             cur.execute(sql, params or ())
             return _PgCursorAdapter(cur)
+
         def executescript(self, script: str):
-            with self.conn:
-                cur = self.conn.cursor()
-                for stmt in script.split(";"):
-                    stmt = stmt.strip()
-                    if stmt:
-                        cur.execute(stmt)
+            # ❌ NO usar "with self.conn:" en psycopg v3: cierra la conexión.
+            cur = self.conn.cursor()
+            for stmt in script.split(";"):
+                stmt = stmt.strip()
+                if stmt:
+                    cur.execute(stmt)
+            self.conn.commit()   # commit explícito
+            cur.close()
+
         def commit(self): self.conn.commit()
         def close(self): self.conn.close()
 
