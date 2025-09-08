@@ -1,75 +1,86 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="row g-4">
-  <div class="col-12 col-lg-5">
-    <div class="card">
-      <div class="card-body">
-        <h5 class="card-title">Nuevo cliente</h5>
-        <form method="post" action="{{ url_for('clients.client_add') }}">
-          <div class="row g-2">
-            <div class="col-6">
-              <label class="form-label">Nombre</label>
-              <input name="first_name" class="form-control" required>
-            </div>
-            <div class="col-6">
-              <label class="form-label">Apellido</label>
-              <input name="last_name" class="form-control" required>
-            </div>
-          </div>
-          <div class="row g-2 mt-1">
-            <div class="col-6">
-              <label class="form-label">Apodo (opcional)</label>
-              <input name="nickname" class="form-control">
-            </div>
-            <div class="col-6">
-              <label class="form-label">Teléfono</label>
-              <input name="phone" class="form-control" placeholder="+54 9 ...">
-            </div>
-          </div>
-          <div class="row g-2 mt-1">
-            <div class="col-6">
-              <label class="form-label">Email</label>
-              <input name="email" type="email" class="form-control">
-            </div>
-            <div class="col-6">
-              <label class="form-label">Dirección</label>
-              <input name="address" class="form-control">
-            </div>
-          </div>
-          <div class="d-grid mt-3">
-            <button class="btn btn-outline-light">Agregar cliente</button>
-          </div>
-        </form>
-      </div>
-    </div>
+  <div class="col-lg-4">
+    <div class="card"><div class="card-body">
+      <h5 class="card-title">Nuevo cliente</h5>
+      <form method="post" action="{{ url_for('clients.clients_add') }}" class="row g-2">
+        <div class="col-md-6"><label class="form-label">Nombre</label><input name="first_name" class="form-control" required></div>
+        <div class="col-md-6"><label class="form-label">Apellido</label><input name="last_name" class="form-control" required></div>
+        <div class="col-md-6"><label class="form-label">Apodo</label><input name="nickname" class="form-control"></div>
+        <div class="col-md-6"><label class="form-label">Teléfono</label><input name="phone" class="form-control"></div>
+        <div class="col-12"><label class="form-label">Email</label><input name="email" type="email" class="form-control"></div>
+        <div class="col-12"><label class="form-label">Dirección</label><input name="address" class="form-control"></div>
+        <div class="col-12 d-grid"><button class="btn btn-outline-light">Crear</button></div>
+      </form>
+    </div></div>
   </div>
 
-  <div class="col-12 col-lg-7">
-    <div class="card">
-      <div class="card-body">
-        <h5 class="card-title">Clientes</h5>
-        <div class="table-responsive">
-          <table class="table align-middle">
-            <thead><tr><th>Apellido</th><th>Nombre</th><th>Apodo</th><th>Teléfono</th><th>Email</th><th>Dirección</th></tr></thead>
-            <tbody>
-              {% for c in clients %}
-              <tr>
-                <td>{{ c.last_name }}</td>
-                <td>{{ c.first_name }}</td>
-                <td class="text-secondary">{{ c.nickname or '-' }}</td>
-                <td class="text-secondary">{{ c.phone or '-' }}</td>
-                <td class="text-secondary">{{ c.email or '-' }}</td>
-                <td class="text-secondary">{{ c.address or '-' }}</td>
-              </tr>
-              {% else %}
-              <tr><td colspan="6" class="text-center text-secondary">Sin clientes</td></tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-        <div class="text-secondary small">Luego podés asignar un cliente al vender desde la solapa <b>Stock</b>.</div>
+  <div class="col-lg-8">
+    <div class="card"><div class="card-body">
+      <h5 class="card-title">Clientes</h5>
+      <div class="table-responsive">
+        <table class="table align-middle">
+          <thead><tr><th>Nombre</th><th>Apodo</th><th>Teléfono</th><th>Email</th><th>Dirección</th><th class="text-end">Acciones</th></tr></thead>
+          <tbody>
+            {% for c in clients %}
+            <tr>
+              <td>{{ c.last_name }}, {{ c.first_name }}</td>
+              <td>{{ c.nickname or '-' }}</td>
+              <td>{{ c.phone or '-' }}</td>
+              <td>{{ c.email or '-' }}</td>
+              <td>{{ c.address or '-' }}</td>
+              <td class="text-end">
+                <button class="btn btn-sm btn-outline-light" data-bs-toggle="modal" data-bs-target="#editClientModal"
+                        data-id="{{ c.id }}" data-fn="{{ c.first_name }}" data-ln="{{ c.last_name }}"
+                        data-nick="{{ c.nickname or '' }}" data-phone="{{ c.phone or '' }}"
+                        data-email="{{ c.email or '' }}" data-address="{{ c.address or '' }}">Editar</button>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6" class="text-center text-secondary">Sin clientes</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
       </div>
+    </div></div>
+  </div>
+</div>
+
+<!-- Modal editar cliente -->
+<div class="modal fade" id="editClientModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content bg-dark text-light">
+      <form method="post" action="{{ url_for('clients.clients_update') }}">
+        <div class="modal-header"><h5 class="modal-title">Editar cliente</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body row g-2">
+          <input type="hidden" name="id" id="cl_id">
+          <div class="col-md-6"><label class="form-label">Nombre</label><input class="form-control" name="first_name" id="cl_fn" required></div>
+          <div class="col-md-6"><label class="form-label">Apellido</label><input class="form-control" name="last_name" id="cl_ln" required></div>
+          <div class="col-md-6"><label class="form-label">Apodo</label><input class="form-control" name="nickname" id="cl_nick"></div>
+          <div class="col-md-6"><label class="form-label">Teléfono</label><input class="form-control" name="phone" id="cl_phone"></div>
+          <div class="col-12"><label class="form-label">Email</label><input class="form-control" type="email" name="email" id="cl_email"></div>
+          <div class="col-12"><label class="form-label">Dirección</label><input class="form-control" name="address" id="cl_address"></div>
+        </div>
+        <div class="modal-footer"><button class="btn btn-outline-light">Guardar</button></div>
+      </form>
     </div>
   </div>
 </div>
+
+<script>
+  const cModal = document.getElementById('editClientModal');
+  cModal.addEventListener('show.bs.modal', (ev)=>{
+    const b = ev.relatedTarget;
+    document.getElementById('cl_id').value = b.dataset.id;
+    document.getElementById('cl_fn').value = b.dataset.fn;
+    document.getElementById('cl_ln').value = b.dataset.ln;
+    document.getElementById('cl_nick').value = b.dataset.nick || '';
+    document.getElementById('cl_phone').value = b.dataset.phone || '';
+    document.getElementById('cl_email').value = b.dataset.email || '';
+    document.getElementById('cl_address').value = b.dataset.address || '';
+  });
+</script>
 {% endblock %}
