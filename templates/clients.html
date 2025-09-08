@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row g-4">
+  <div class="col-12 col-lg-5">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Nuevo cliente</h5>
+        <form method="post" action="{{ url_for('clients.client_add') }}">
+          <div class="row g-2">
+            <div class="col-6">
+              <label class="form-label">Nombre</label>
+              <input name="first_name" class="form-control" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Apellido</label>
+              <input name="last_name" class="form-control" required>
+            </div>
+          </div>
+          <div class="row g-2 mt-1">
+            <div class="col-6">
+              <label class="form-label">Apodo (opcional)</label>
+              <input name="nickname" class="form-control">
+            </div>
+            <div class="col-6">
+              <label class="form-label">Teléfono</label>
+              <input name="phone" class="form-control" placeholder="+54 9 ...">
+            </div>
+          </div>
+          <div class="row g-2 mt-1">
+            <div class="col-6">
+              <label class="form-label">Email</label>
+              <input name="email" type="email" class="form-control">
+            </div>
+            <div class="col-6">
+              <label class="form-label">Dirección</label>
+              <input name="address" class="form-control">
+            </div>
+          </div>
+          <div class="d-grid mt-3">
+            <button class="btn btn-outline-light">Agregar cliente</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-7">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Clientes</h5>
+        <div class="table-responsive">
+          <table class="table align-middle">
+            <thead><tr><th>Apellido</th><th>Nombre</th><th>Apodo</th><th>Teléfono</th><th>Email</th><th>Dirección</th></tr></thead>
+            <tbody>
+              {% for c in clients %}
+              <tr>
+                <td>{{ c.last_name }}</td>
+                <td>{{ c.first_name }}</td>
+                <td class="text-secondary">{{ c.nickname or '-' }}</td>
+                <td class="text-secondary">{{ c.phone or '-' }}</td>
+                <td class="text-secondary">{{ c.email or '-' }}</td>
+                <td class="text-secondary">{{ c.address or '-' }}</td>
+              </tr>
+              {% else %}
+              <tr><td colspan="6" class="text-center text-secondary">Sin clientes</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <div class="text-secondary small">Luego podés asignar un cliente al vender desde la solapa <b>Stock</b>.</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

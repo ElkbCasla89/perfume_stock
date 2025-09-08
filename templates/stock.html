@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row g-4">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Mover stock</h5>
+        <form class="row g-3 align-items-end" method="post" action="{{ url_for('stock.stock_move') }}">
+          <div class="col-12 col-md-4">
+            <label class="form-label">Perfume</label>
+            <select id="perfumeSelect" name="perfume_id" class="form-select" required>
+              <option value="" disabled selected>-- Elegir --</option>
+              {% for p in perfumes %}
+                <option value="{{ p.id }}" data-price="{{ p.price_cents }}">{{ p.brand }} • {{ p.type }} • {{ p.name }} • {{ p.ml }} ml (Stock: {{ p.quantity }})</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-6 col-md-2">
+            <label class="form-label">Cantidad</label>
+            <input type="number" class="form-control" name="amount" min="1" value="1" required>
+          </div>
+          <div class="col-6 col-md-2">
+            <label class="form-label">Operación</label>
+            <select id="opSelect" name="op" class="form-select" required>
+              <option value="add">Agregar (Compra)</option>
+              <option value="remove">Quitar (Venta)</option>
+            </select>
+          </div>
+          <div class="col-12 col-md-3">
+            <label class="form-label">Motivo</label>
+            <input class="form-control" name="reason" placeholder="Compra, rotura, venta...">
+          </div>
+
+          <div class="col-12 col-md-3" id="priceBlock" style="display:none">
+            <label class="form-label">Precio unitario (venta)</label>
+            <input id="unitPrice" name="unit_price" type="number" step="0.01" min="0" class="form-control" placeholder="Usa el precio del perfume">
+            <div class="form-text">Por defecto se usa el precio del perfume; podés sobrescribirlo acá.</div>
+          </div>
+
+          <div class="col-12 col-md-4" id="clientBlock" style="display:none">
+            <label class="form-label">Cliente (solo para Venta)</label>
+            <select name="customer_id" class="form-select">
+              <option value="">-- Sin cliente --</option>
+              {% for c in clients %}
+                <option value="{{ c.id }}">{{ c.last_name }}, {{ c.first_name }}{% if c.nickname %} ({{ c.nickname }}){% endif %}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="col-12 col-md-2 d-grid">
+            <button class="btn btn-outline-light">OK</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const opSelect = document.getElementById('opSelect');
+  const clientBlock = document.getElementById('clientBlock');
+  const priceBlock = document.getElementById('priceBlock');
+  const perfumeSelect = document.getElementById('perfumeSelect');
+  const unitPrice = document.getElementById('unitPrice');
+
+  function toggleBlocks() {
+    const isSale = opSelect.value === 'remove';
+    clientBlock.style.display = isSale ? 'block' : 'none';
+    priceBlock.style.display = isSale ? 'block' : 'none';
+    if (isSale) {
+      const opt = perfumeSelect.options[perfumeSelect.selectedIndex];
+      if (opt && opt.dataset.price) {
+        unitPrice.value = (parseInt(opt.dataset.price, 10) / 100).toFixed(2);
+      }
+    } else {
+      unitPrice.value = '';
+    }
+  }
+  opSelect.addEventListener('change', toggleBlocks);
+  perfumeSelect.addEventListener('change', toggleBlocks);
+  toggleBlocks();
+</script>
+{% endblock %}

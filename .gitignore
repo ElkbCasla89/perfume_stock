@@ -1,0 +1,17 @@
+# Python / venv
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+
+# Base de datos local (NO subirla)
+perfumes.db
+
+# Otros
+.DS_Store
+Thumbs.db
+.env
+instance/
+.pytest_cache/

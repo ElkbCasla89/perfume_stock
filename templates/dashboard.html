@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row g-4">
+  <div class="col-12 col-lg-6">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Stock por marca</h5>
+        <canvas id="stockByBrand"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-lg-6">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Top 5 vendidos</h5>
+        <canvas id="topSold"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+  // Datos desde el servidor
+  const stockByBrandLabels = {{ stock_by_brand | map(attribute='brand') | list | tojson }};
+  const stockByBrandData   = {{ stock_by_brand | map(attribute='qty')   | list | tojson }};
+
+  const topSoldLabels = {{ top_sold | map(attribute='perfume') | list | tojson }};
+  const topSoldData   = {{ top_sold | map(attribute='sold_qty') | list | tojson }};
+
+  // Stock por marca
+  new Chart(document.getElementById('stockByBrand'), {
+    type: 'bar',
+    data: {
+      labels: stockByBrandLabels,
+      datasets: [{ label: 'Unidades', data: stockByBrandData }]
+    },
+    options: { responsive: true, plugins: { legend: { display: false } } }
+  });
+
+  // Top vendidos
+  new Chart(document.getElementById('topSold'), {
+    type: 'bar',
+    data: {
+      labels: topSoldLabels,
+      datasets: [{ label: 'Vendidos', data: topSoldData }]
+    },
+    options: { responsive: true, plugins: { legend: { display: false } } }
+  });
+</script>
+{% endblock %}

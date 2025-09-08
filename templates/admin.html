@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row g-4">
+  <div class="col-12 col-lg-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <h5 class="card-title">Marcas</h5>
+        <form method="post" action="{{ url_for('admin.brand_add') }}" class="mb-3">
+          <div class="input-group">
+            <input class="form-control" name="name" placeholder="Ej: Dior" required>
+            <button class="btn btn-outline-light">Agregar</button>
+          </div>
+        </form>
+        <ul class="list-group">
+          {% for b in brands %}
+            <li class="list-group-item d-flex justify-content-between align-items-center bg-transparent text-white">
+              <span>{{ b.name }}</span>
+              <span class="badge text-bg-secondary">{{ b.perf_count }} perfume(s)</span>
+            </li>
+          {% else %}
+            <li class="list-group-item bg-transparent text-secondary">Sin marcas</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <h5 class="card-title">Tipos de perfume</h5>
+        <form method="post" action="{{ url_for('admin.type_add') }}" class="mb-3">
+          <div class="input-group">
+            <input class="form-control" name="name" placeholder="Ej: Eau de Parfum" required>
+            <button class="btn btn-outline-light">Agregar</button>
+          </div>
+        </form>
+        <ul class="list-group">
+          {% for t in types %}
+            <li class="list-group-item d-flex justify-content-between align-items-center bg-transparent text-white">
+              <span>{{ t.name }}</span>
+              <span class="badge text-bg-secondary">{{ t.perf_count }} perfume(s)</span>
+            </li>
+          {% else %}
+            <li class="list-group-item bg-transparent text-secondary">Sin tipos</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <h5 class="card-title">Tamaños (ml)</h5>
+        <form method="post" action="{{ url_for('admin.size_add') }}" class="mb-3">
+          <div class="input-group">
+            <input type="number" min="1" class="form-control" name="ml" placeholder="Ej: 100" required>
+            <button class="btn btn-outline-light">Agregar</button>
+          </div>
+        </form>
+        <ul class="list-group">
+          {% for s in sizes %}
+            <li class="list-group-item d-flex justify-content-between align-items-center bg-transparent text-white">
+              <span>{{ s.ml }} ml</span>
+              <span class="badge text-bg-secondary">{{ s.perf_count }} perfume(s)</span>
+            </li>
+          {% else %}
+            <li class="list-group-item bg-transparent text-secondary">Sin tamaños</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

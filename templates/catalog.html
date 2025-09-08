@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row g-4">
+  <div class="col-12 col-lg-3">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title mb-3">Filtros</h5>
+        <form method="get" id="filtersForm" action="{{ url_for('catalog.catalog') }}">
+          <div class="mb-2">
+            <label class="form-label">Marca</label>
+            <select name="brand_id" class="form-select">
+              <option value="">Todas</option>
+              {% for b in brands %}
+                <option value="{{ b.id }}" {{ 'selected' if request.args.get('brand_id')==(b.id|string) else '' }}>{{ b.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Tipo</label>
+            <select name="type_id" class="form-select">
+              <option value="">Todos</option>
+              {% for t in types %}
+                <option value="{{ t.id }}" {{ 'selected' if request.args.get('type_id')==(t.id|string) else '' }}>{{ t.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Tamaño (ml)</label>
+            <select name="size_id" class="form-select">
+              <option value="">Todos</option>
+              {% for s in sizes %}
+                <option value="{{ s.id }}" {{ 'selected' if request.args.get('size_id')==(s.id|string) else '' }}>{{ s.ml }} ml</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="mb-2">
+            <label class="form-label">Nombre contiene</label>
+            <input name="q" class="form-control" value="{{ request.args.get('q','') }}">
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Código de barras contiene</label>
+            <input name="barcode" class="form-control" value="{{ request.args.get('barcode','') }}">
+          </div>
+          <div class="row">
+            <div class="col">
+              <label class="form-label">Cant. min</label>
+              <input type="number" class="form-control" name="min_qty" value="{{ request.args.get('min_qty','') }}">
+            </div>
+            <div class="col">
+              <label class="form-label">Cant. máx</label>
+              <input type="number" class="form-control" name="max_qty" value="{{ request.args.get('max_qty','') }}">
+            </div>
+          </div>
+
+          <div class="d-grid mt-3 gap-2">
+            <button class="btn btn-outline-light" type="submit">Aplicar filtros</button>
+            <button class="btn btn-outline-light" type="submit" formaction="{{ url_for('catalog.export_csv') }}" formmethod="post">
+              Exportar CSV
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-9">
+    <div class="card">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h5 class="card-title m-0">Catálogo</h5>
+          <span class="text-secondary small">Mostrando {{ perfumes|length }} ítem(s)</span>
+        </div>
+        <div class="table-responsive">
+          <table class="table align-middle">
+            <thead>
+              <tr>
+                <th>Marca</th>
+                <th>Tipo</th>
+                <th>Nombre</th>
+                <th>Tamaño</th>
+                <th>Barcode</th>
+                <th>Precio</th>
+                <th class="text-center">Stock</th>
+                <th class="text-end">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in perfumes %}
+              {% set cls = 'success' if p.quantity > low_threshold else ('warning' if p.quantity > 0 else 'danger') %}
+              <tr>
+                <td>{{ p.brand }}</td>
+                <td>{{ p.type }}</td>
+                <td>{{ p.name }}</td>
+                <td><span class="badge rounded-pill text-bg-secondary">{{ p.ml }} ml</span></td>
+                <td class="text-secondary">{{ p.barcode or '-' }}</td>
+                <td><strong>{{ p.price_cents|money }}</strong></td>
+                <td class="text-center">
+                  <span class="badge rounded-pill text-bg-{{ cls }} qty-pill">{{ p.quantity }}</span>
+                </td>
+                <td class="text-end">
+                  <div class="d-flex flex-wrap justify-content-end gap-2">
+                    <!-- Agregar -->
+                    <form class="input-group input-group-sm" method="post" action="{{ url_for('stock.stock_move') }}" style="max-width: 420px;">
+                      <input type="hidden" name="perfume_id" value="{{ p.id }}">
+                      <input type="hidden" name="op" value="add">
+                      <span class="input-group-text">+ </span>
+                      <input type="number" name="amount" class="form-control" min="1" value="1" title="Cantidad a agregar">
+                      <input type="text" name="reason" class="form-control" placeholder="Motivo (opcional)">
+                      <button class="btn btn-success">Agregar</button>
+                    </form>
+
+                    <!-- Quitar (venta rápida sin cliente) -->
+                    <form class="input-group input-group-sm" method="post" action="{{ url_for('stock.stock_move') }}" style="max-width: 520px;">
+                      <input type="hidden" name="perfume_id" value="{{ p.id }}">
+                      <input type="hidden" name="op" value="remove">
+                      <span class="input-group-text">- </span>
+                      <input type="number" name="amount" class="form-control" min="1" value="1" title="Cantidad a quitar">
+                      <input type="text" name="reason" class="form-control" placeholder="Motivo (venta)">
+                      <!-- precio se aplica desde el valor seteado en el perfume -->
+                      <button class="btn btn-danger">Vender</button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+              {% else %}
+              <tr><td colspan="8" class="text-center text-secondary">Sin resultados</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <div class="text-secondary small">* <b>Warning</b> indica stock bajo (≤ umbral), <b>Rojo</b> sin stock.</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row g-4">
+  <div class="col-12 col-lg-5">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Nuevo perfume</h5>
+        <form method="post" action="{{ url_for('perfumes.perfume_add') }}">
+          <div class="mb-2">
+            <label class="form-label">Marca</label>
+            <select name="brand_id" class="form-select" required>
+              <option value="" disabled selected>-- Elegir marca --</option>
+              {% for b in brands %}
+                <option value="{{ b.id }}">{{ b.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Tipo</label>
+            <select name="type_id" class="form-select" required>
+              <option value="" disabled selected>-- Elegir tipo --</option>
+              {% for t in types %}
+                <option value="{{ t.id }}">{{ t.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Tamaño (ml)</label>
+            <select name="size_id" class="form-select" required>
+              <option value="" disabled selected>-- Elegir tamaño --</option>
+              {% for s in sizes %}
+                <option value="{{ s.id }}">{{ s.ml }} ml</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Nombre del perfume</label>
+            <input name="name" class="form-control" required>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Código de barras (opcional)</label>
+            <input name="barcode" class="form-control">
+          </div>
+          <div class="row g-2">
+            <div class="col-6">
+              <label class="form-label">Cantidad inicial</label>
+              <input type="number" name="quantity" class="form-control" min="0" value="0" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Precio (unidad)</label>
+              <input type="number" name="price" step="0.01" min="0" class="form-control" placeholder="0.00">
+            </div>
+          </div>
+          <div class="d-grid mt-3">
+            <button class="btn btn-outline-light">Crear perfume</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-7">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Últimos perfumes cargados</h5>
+        <div class="table-responsive">
+          <table class="table align-middle">
+            <thead><tr><th>Fecha</th><th>Marca</th><th>Tipo</th><th>Nombre</th><th>Tam.</th><th>Precio</th><th>Stock</th></tr></thead>
+            <tbody>
+              {% for p in perfumes %}
+              <tr>
+                <td class="text-secondary">{{ p.created_at }}</td>
+                <td>{{ p.brand }}</td>
+                <td>{{ p.type }}</td>
+                <td>{{ p.name }}</td>
+                <td><span class="badge text-bg-secondary">{{ p.ml }} ml</span></td>
+                <td>{{ p.price_cents|money }}</td>
+                <td><span class="badge rounded-pill text-bg-{{ 'success' if p.quantity>0 else 'danger' }}">{{ p.quantity }}</span></td>
+              </tr>
+              {% else %}
+              <tr><td colspan="7" class="text-center text-secondary">Sin datos</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <div class="text-end"><a class="btn btn-sm btn-outline-light" href="{{ url_for('catalog.catalog') }}">Ver catálogo</a></div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

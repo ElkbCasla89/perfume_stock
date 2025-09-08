@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <div class="card-body">
+    <h5 class="card-title">Movimientos recientes</h5>
+    <form method="get" class="row g-2 align-items-end mb-3">
+      <div class="col-12 col-md-5">
+        <label class="form-label">Filtrar por perfume</label>
+        <select name="perfume_id" class="form-select">
+          <option value="">Todos</option>
+          {% for p in perfumes %}
+            <option value="{{ p.id }}" {{ 'selected' if request.args.get('perfume_id')==(p.id|string) else '' }}>
+              {{ p.brand }} • {{ p.type }} • {{ p.name }} • {{ p.ml }} ml
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-6 col-md-3">
+        <label class="form-label">Límite</label>
+        <input type="number" class="form-control" name="limit" value="{{ request.args.get('limit','50') }}">
+      </div>
+      <div class="col-6 col-md-2 d-grid">
+        <button class="btn btn-outline-light">Aplicar</button>
+      </div>
+    </form>
+
+    <div class="table-responsive">
+      <table class="table align-middle">
+        <thead>
+          <tr>
+            <th>Fecha</th><th>Perfume</th><th>Operación</th><th>Cant.</th><th>Motivo</th><th>Cliente</th><th>Precio</th><th>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for m in moves %}
+          {% set is_sale = m.delta < 0 %}
+          <tr>
+            <td class="text-secondary">{{ m.created_at }}</td>
+            <td>{{ m.brand }} • {{ m.type }} • {{ m.name }} • {{ m.ml }} ml</td>
+            <td>{% if is_sale %}<span class="badge text-bg-danger">Quitó</span>{% else %}<span class="badge text-bg-success">Agregó</span>{% endif %}</td>
+            <td>{{ m.delta|abs }}</td>
+            <td class="text-secondary">{{ m.reason or '-' }}</td>
+            <td class="text-secondary">
+              {% if m.first_name %}
+                {{ m.last_name }}, {{ m.first_name }}{% if m.nickname %} ({{ m.nickname }}){% endif %}
+              {% else %}-{% endif %}
+            </td>
+            <td>{% if is_sale and m.unit_price_cents is not none %}{{ m.unit_price_cents|money }}{% else %}-{% endif %}</td>
+            <td>
+              {% if is_sale and m.unit_price_cents is not none %}
+                {{ (m.unit_price_cents * (m.delta|abs))|money }}
+              {% else %}-{% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="8" class="text-center text-secondary">Sin movimientos</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
