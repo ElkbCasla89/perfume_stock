@@ -1,39 +1,108 @@
-<div class="table-responsive">
-  <table class="table align-middle">
-    <thead>
-      <tr>
-        <th>Fecha</th><th>Marca</th><th>Tipo</th><th>Nombre</th><th>Tam.</th><th>Precio</th><th>Stock</th><th class="text-end">Acciones</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for p in perfumes %}
-      <tr>
-        <td class="text-secondary">{{ p.created_at }}</td>
-        <td>{{ p.brand }}</td>
-        <td>{{ p.type }}</td>
-        <td>{{ p.name }}</td>
-        <td><span class="badge text-bg-secondary">{{ p.ml }} ml</span></td>
-        <td>{{ p.price_cents|money }}</td>
-        <td><span class="badge rounded-pill text-bg-{{ 'success' if p.quantity>0 else 'danger' }}">{{ p.quantity }}</span></td>
-        <td class="text-end">
-          <button class="btn btn-sm btn-outline-light"
-            data-bs-toggle="modal" data-bs-target="#editPerfumeModal"
-            data-id="{{ p.id }}"
-            data-brand="{{ p.brand }}"
-            data-type="{{ p.type }}"
-            data-name="{{ p.name }}"
-            data-ml="{{ p.ml }}"
-            data-barcode="{{ p.barcode or '' }}"
-            data-price="{{ (p.price_cents or 0) / 100 }}"
-            data-quantity="{{ p.quantity }}"
-          >Editar</button>
-        </td>
-      </tr>
-      {% else %}
-      <tr><td colspan="8" class="text-center text-secondary">Sin datos</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
+{% extends "base.html" %}
+
+{% macro page_content() %}
+<div class="row g-4">
+
+  <!-- Alta de perfume -->
+  <div class="col-lg-4">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title mb-3">Nuevo perfume</h5>
+        <form method="post" action="{{ url_for('perfumes.perfume_add') }}" class="row g-3">
+          <div class="col-12">
+            <label class="form-label">Marca</label>
+            <select class="form-select" name="brand_id" required>
+              {% for b in brands %}<option value="{{ b.id }}">{{ b.name }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="col-12">
+            <label class="form-label">Tipo</label>
+            <select class="form-select" name="type_id" required>
+              {% for t in types %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="col-12">
+            <label class="form-label">Tamaño</label>
+            <select class="form-select" name="size_id" required>
+              {% for s in sizes %}<option value="{{ s.id }}">{{ s.ml }} ml</option>{% endfor %}
+            </select>
+          </div>
+          <div class="col-12">
+            <label class="form-label">Nombre</label>
+            <input class="form-control" name="name" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Código de barras (opcional)</label>
+            <input class="form-control" name="barcode">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Precio (u.)</label>
+            <input type="number" step="0.01" min="0" class="form-control" name="price" placeholder="0.00">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Cantidad inicial</label>
+            <input type="number" min="0" class="form-control" name="quantity" value="0">
+            <div class="form-text">Se registra en Movimientos.</div>
+          </div>
+          <div class="col-12 d-grid">
+            <button class="btn btn-outline-light">Crear</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Últimos perfumes -->
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-body">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <h5 class="card-title mb-0">Últimos perfumes cargados</h5>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table align-middle">
+            <thead>
+              <tr>
+                <th>Fecha</th><th>Marca</th><th>Tipo</th><th>Nombre</th>
+                <th>Tam.</th><th>Precio</th><th>Stock</th><th class="text-end">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in perfumes %}
+              <tr>
+                <td class="text-secondary">{{ p.created_at }}</td>
+                <td>{{ p.brand }}</td>
+                <td>{{ p.type }}</td>
+                <td>{{ p.name }}</td>
+                <td><span class="badge text-bg-secondary">{{ p.ml }} ml</span></td>
+                <td>{{ p.price_cents|money }}</td>
+                <td>
+                  <span class="badge rounded-pill text-bg-{{ 'success' if p.quantity>0 else 'danger' }}">{{ p.quantity }}</span>
+                </td>
+                <td class="text-end">
+                  <button class="btn btn-sm btn-outline-light"
+                          data-bs-toggle="modal" data-bs-target="#editPerfumeModal"
+                          data-id="{{ p.id }}"
+                          data-brand="{{ p.brand }}"
+                          data-type="{{ p.type }}"
+                          data-name="{{ p.name }}"
+                          data-ml="{{ p.ml }}"
+                          data-barcode="{{ p.barcode or '' }}"
+                          data-price="{{ (p.price_cents or 0) / 100 }}"
+                          data-quantity="{{ p.quantity }}">Editar</button>
+                </td>
+              </tr>
+              {% else %}
+              <tr><td colspan="8" class="text-center text-secondary">Sin datos</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- Modal editar perfume -->
@@ -103,12 +172,15 @@
     document.getElementById('ep_price').value = btn.dataset.price || '0.00';
     document.getElementById('ep_qty').value = btn.dataset.quantity || 0;
 
-    // Seleccionar opciones por texto visible
     const brandSel = document.getElementById('ep_brand');
     const typeSel  = document.getElementById('ep_type');
     const sizeSel  = document.getElementById('ep_size');
-    [...brandSel.options].forEach(o => { if (o.text === btn.dataset.brand) o.selected = true; });
-    [...typeSel.options].forEach(o => { if (o.text === btn.dataset.type) o.selected = true; });
-    [...sizeSel.options].forEach(o => { if (o.text.startsWith(btn.dataset.ml + ' ')) o.selected = true; });
+    [...brandSel.options].forEach(o => { o.selected = (o.text === btn.dataset.brand); });
+    [...typeSel.options].forEach(o => { o.selected = (o.text === btn.dataset.type); });
+    [...sizeSel.options].forEach(o => { o.selected = o.text.startsWith(btn.dataset.ml + ' '); });
   });
 </script>
+{% endmacro %}
+
+{% block content %}{{ page_content() }}{% endblock %}
+{% block body %}{{ page_content() }}{% endblock %}
