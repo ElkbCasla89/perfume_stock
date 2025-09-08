@@ -3,6 +3,15 @@ from config import Config
 from models import init_db, close_db
 from routes import register_blueprints
 
+@app.get("/debug/db")
+def debug_db():
+    db = get_db()  # fuerza la conexión
+    kind = getattr(g, "db_kind", "unknown")  # 'pg' o 'sqlite'
+    return jsonify({
+        "db_backend": kind,
+        "has_DATABASE_URL": bool(__import__("os").environ.get("DATABASE_URL"))
+    })
+
 def _money_filter(value):
     try:
         cents = int(value or 0)
