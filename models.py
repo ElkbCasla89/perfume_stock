@@ -1,20 +1,97 @@
+import os
 import sqlite3
 from flask import g, current_app
+from urllib.parse import urlparse
+
+# Solo cargamos psycopg2 si hace falta (en Render)
+PG_AVAILABLE = False
+if os.environ.get("DATABASE_URL"):
+    try:
+        import psycopg2
+        import psycopg2.extras
+        PG_AVAILABLE = True
+    except Exception:
+        PG_AVAILABLE = False
+
+# ---------- Adaptadores para devolver .fetchall() similar en ambas DB ----------
+class _PgCursorAdapter:
+    def __init__(self, cursor):
+        self._cur = cursor
+    def fetchall(self):
+        rows = self._cur.fetchall()  # list[RealDictRow]
+        # RealDictRow ya se comporta como dict; simulamos sqlite3.Row
+        return rows
+    def fetchone(self):
+        return self._cur.fetchone()
+
+class _PgConnAdapter:
+    def __init__(self, conn):
+        self.conn = conn
+    def execute(self, sql, params=()):
+        # reemplazo simple de placeholders SQLite (?) -> Postgres (%s)
+        # si el SQL ya trae %s no tocamos
+        if "%s" not in sql:
+            q_count = sql.count("?")
+            if q_count:
+                parts = sql.split("?")
+                sql = "%s".join(parts)
+        cur = self.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute(sql, params or ())
+        return _PgCursorAdapter(cur)
+    def executescript(self, script):
+        # Partimos por ; y ejecutamos cada sentencia no vacía
+        with self.conn:
+            cur = self.conn.cursor()
+            for stmt in script.split(";"):
+                stmt = stmt.strip()
+                if stmt:
+                    cur.execute(stmt)
+    def commit(self):
+        self.conn.commit()
+    def close(self):
+        self.conn.close()
+
+# ---------- Conexión ----------
+def _connect_sqlite(path):
+    conn = sqlite3.connect(path)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON;")
+    return conn
+
+def _connect_postgres(dsn):
+    # dsn: postgres://user:pass@host:port/dbname
+    conn = psycopg2.connect(dsn)  # Render ya trae sslmode en la URL
+    return _PgConnAdapter(conn)
 
 def get_db():
     if "db" not in g:
-        g.db = sqlite3.connect(current_app.config["DB_PATH"])
-        g.db.row_factory = sqlite3.Row
-        g.db.execute("PRAGMA foreign_keys = ON;")
+        durl = os.environ.get("DATABASE_URL")
+        if durl and PG_AVAILABLE:
+            g.db = _connect_postgres(durl)
+            g.db_kind = "pg"
+        else:
+            g.db = _connect_sqlite(current_app.config["DB_PATH"])
+            g.db_kind = "sqlite"
     return g.db
 
 def close_db(_exc=None):
     db = g.pop("db", None)
     if db is not None:
-        db.close()
+        # sqlite3.Connection y _PgConnAdapter comparten estos métodos
+        close_fn = getattr(db, "close", None)
+        if callable(close_fn):
+            close_fn()
 
+# ---------- Inicialización / Migración ----------
 def init_db():
     db = get_db()
+    kind = getattr(g, "db_kind", "sqlite")
+    if kind == "sqlite":
+        _init_sqlite(db)
+    else:
+        _init_postgres(db)
+
+def _init_sqlite(db):
     db.executescript(
         """
         CREATE TABLE IF NOT EXISTS brands (
@@ -28,6 +105,16 @@ def init_db():
         CREATE TABLE IF NOT EXISTS sizes (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           ml INTEGER NOT NULL UNIQUE CHECK (ml > 0)
+        );
+        CREATE TABLE IF NOT EXISTS clients (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          first_name TEXT NOT NULL,
+          last_name  TEXT NOT NULL,
+          nickname   TEXT,
+          phone      TEXT,
+          email      TEXT,
+          address    TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
         );
         CREATE TABLE IF NOT EXISTS perfumes (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -49,17 +136,6 @@ def init_db():
         CREATE INDEX IF NOT EXISTS idx_perfumes_size ON perfumes(size_id);
         CREATE INDEX IF NOT EXISTS idx_perfumes_barcode ON perfumes(barcode);
 
-        CREATE TABLE IF NOT EXISTS clients (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          first_name TEXT NOT NULL,
-          last_name  TEXT NOT NULL,
-          nickname   TEXT,
-          phone      TEXT,
-          email      TEXT,
-          address    TEXT,
-          created_at TEXT NOT NULL DEFAULT (datetime('now'))
-        );
-
         CREATE TABLE IF NOT EXISTS stock_moves (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           perfume_id INTEGER NOT NULL,
@@ -73,9 +149,7 @@ def init_db():
         );
         """
     )
-    db.commit()
-
-    # Migraciones suaves (si venís de versión anterior)
+    # Migraciones suaves (ignoran si ya existen)
     for ddl in [
         "ALTER TABLE perfumes ADD COLUMN price_cents INTEGER NOT NULL DEFAULT 0;",
         "ALTER TABLE stock_moves ADD COLUMN customer_id INTEGER;",
@@ -84,10 +158,76 @@ def init_db():
         try:
             db.execute(ddl)
             db.commit()
-        except sqlite3.OperationalError:
-            pass  # ya existe
+        except Exception:
+            pass
 
-# --------- Queries comunes ---------
+def _init_postgres(db):
+    # Versiones para Postgres (SERIAL, NOW(), BOOLEAN/INTEGER iguales)
+    db.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS brands (
+          id SERIAL PRIMARY KEY,
+          name TEXT NOT NULL UNIQUE
+        );
+        CREATE TABLE IF NOT EXISTS perfume_types (
+          id SERIAL PRIMARY KEY,
+          name TEXT NOT NULL UNIQUE
+        );
+        CREATE TABLE IF NOT EXISTS sizes (
+          id SERIAL PRIMARY KEY,
+          ml INTEGER NOT NULL UNIQUE CHECK (ml > 0)
+        );
+        CREATE TABLE IF NOT EXISTS clients (
+          id SERIAL PRIMARY KEY,
+          first_name TEXT NOT NULL,
+          last_name  TEXT NOT NULL,
+          nickname   TEXT,
+          phone      TEXT,
+          email      TEXT,
+          address    TEXT,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+        CREATE TABLE IF NOT EXISTS perfumes (
+          id SERIAL PRIMARY KEY,
+          brand_id INTEGER NOT NULL REFERENCES brands(id) ON DELETE RESTRICT,
+          type_id  INTEGER NOT NULL REFERENCES perfume_types(id) ON DELETE RESTRICT,
+          size_id  INTEGER NOT NULL REFERENCES sizes(id) ON DELETE RESTRICT,
+          name TEXT NOT NULL,
+          barcode TEXT UNIQUE,
+          quantity INTEGER NOT NULL DEFAULT 0 CHECK (quantity >= 0),
+          price_cents INTEGER NOT NULL DEFAULT 0,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+        CREATE INDEX IF NOT EXISTS idx_perfumes_name ON perfumes(name);
+        CREATE INDEX IF NOT EXISTS idx_perfumes_brand ON perfumes(brand_id);
+        CREATE INDEX IF NOT EXISTS idx_perfumes_type ON perfumes(type_id);
+        CREATE INDEX IF NOT EXISTS idx_perfumes_size ON perfumes(size_id);
+        CREATE INDEX IF NOT EXISTS idx_perfumes_barcode ON perfumes(barcode);
+
+        CREATE TABLE IF NOT EXISTS stock_moves (
+          id SERIAL PRIMARY KEY,
+          perfume_id INTEGER NOT NULL REFERENCES perfumes(id) ON DELETE CASCADE,
+          delta INTEGER NOT NULL,
+          reason TEXT,
+          customer_id INTEGER REFERENCES clients(id) ON DELETE SET NULL,
+          unit_price_cents INTEGER,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+        """
+    )
+    # migraciones suaves (INTENTAR agregar columnas si faltan)
+    for ddl in [
+        "ALTER TABLE perfumes ADD COLUMN price_cents INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE stock_moves ADD COLUMN customer_id INTEGER REFERENCES clients(id) ON DELETE SET NULL",
+        "ALTER TABLE stock_moves ADD COLUMN unit_price_cents INTEGER"
+    ]:
+        try:
+            db.execute(ddl)
+            db.commit()
+        except Exception:
+            pass
+
+# ---------- Queries comunes ----------
 def q_brands(db):
     return db.execute(
         "SELECT b.id, b.name, "
@@ -150,14 +290,12 @@ def q_perfume_list(db, filters=None, limit=None):
         sql += f" LIMIT {int(limit)}"
     return db.execute(sql, params).fetchall()
 
-# --------- Clientes ---------
 def q_clients(db):
     return db.execute(
         "SELECT id, first_name, last_name, nickname, phone, email, address, created_at "
         "FROM clients ORDER BY last_name, first_name"
     ).fetchall()
 
-# --------- Dashboard ---------
 def q_stock_by_brand(db):
     return db.execute(
         "SELECT b.name AS brand, SUM(p.quantity) AS qty "
