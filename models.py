@@ -19,8 +19,19 @@ def _connect_postgres(dsn: str):
         def fetchall(self): return self._cur.fetchall()
         def fetchone(self): return self._cur.fetchone()
 
+def _connect_postgres(dsn: str):
+    import psycopg
+    from psycopg.rows import dict_row
+
+    class _PgCursorAdapter:
+        def __init__(self, cur): self._cur = cur
+        def fetchall(self): return self._cur.fetchall()
+        def fetchone(self): return self._cur.fetchone()
+
     class _PgConnAdapter:
-        def __init__(self, conn): self.conn = conn
+        def __init__(self, conn): 
+            self.conn = conn
+
         def execute(self, sql, params=()):
             # Convertir placeholders SQLite (?) -> Postgres (%s) si hace falta
             if "%s" not in sql:
@@ -28,27 +39,54 @@ def _connect_postgres(dsn: str):
             cur = self.conn.cursor(row_factory=dict_row)
             cur.execute(sql, params or ())
             return _PgCursorAdapter(cur)
+
         def executescript(self, script: str):
-            # NO usar 'with self.conn:' (cierra la conexión en psycopg v3)
+            # NO usar 'with self.conn:' en psycopg v3 (puede cerrar la conexión)
             cur = self.conn.cursor()
             for stmt in script.split(";"):
                 stmt = stmt.strip()
                 if stmt:
                     cur.execute(stmt)
-            # Con autocommit=True no hace falta, pero es inofensivo:
-            try: self.conn.commit()
-            except Exception: pass
+            # Con autocommit=True es innecesario, pero inofensivo:
+            try:
+                self.conn.commit()
+            except Exception:
+                pass
             cur.close()
-        def commit(self): 
-            try: self.conn.commit()
-            except Exception: pass
-        def rollback(self):
-            try: self.conn.rollback()
-            except Exception: pass
-        def close(self): self.conn.close()
 
-    # 👉 Autocommit TRUE evita “transaction aborted” al ignorar migraciones
+        def commit(self):
+            try:
+                self.conn.commit()
+            except Exception:
+                pass
+
+        def rollback(self):
+            try:
+                self.conn.rollback()
+            except Exception:
+                pass
+
+        def close(self):
+            self.conn.close()
+
+        # >>> Soporte para 'with db:' <<<
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            try:
+                if exc_type:
+                    self.conn.rollback()
+                else:
+                    self.conn.commit()
+            except Exception:
+                pass
+            # No suprimir excepciones
+            return False
+
+    # Autocommit ayuda a evitar "transaction aborted" en migraciones
     return _PgConnAdapter(psycopg.connect(dsn, autocommit=True))
+
 
 def get_db():
     """Devuelve la conexión activa y setea g.db_kind = 'pg' | 'sqlite'."""
