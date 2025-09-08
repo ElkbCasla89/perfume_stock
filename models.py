@@ -1,72 +1,52 @@
 import os
 import sqlite3
 from flask import g, current_app
-from urllib.parse import urlparse
 
-# Solo cargamos psycopg2 si hace falta (en Render)
-PG_AVAILABLE = False
-if os.environ.get("DATABASE_URL"):
-    try:
-        import psycopg2
-        import psycopg2.extras
-        PG_AVAILABLE = True
-    except Exception:
-        PG_AVAILABLE = False
+# ========= Conexiones =========
 
-# ---------- Adaptadores para devolver .fetchall() similar en ambas DB ----------
-class _PgCursorAdapter:
-    def __init__(self, cursor):
-        self._cur = cursor
-    def fetchall(self):
-        rows = self._cur.fetchall()  # list[RealDictRow]
-        # RealDictRow ya se comporta como dict; simulamos sqlite3.Row
-        return rows
-    def fetchone(self):
-        return self._cur.fetchone()
-
-class _PgConnAdapter:
-    def __init__(self, conn):
-        self.conn = conn
-    def execute(self, sql, params=()):
-        # reemplazo simple de placeholders SQLite (?) -> Postgres (%s)
-        # si el SQL ya trae %s no tocamos
-        if "%s" not in sql:
-            q_count = sql.count("?")
-            if q_count:
-                parts = sql.split("?")
-                sql = "%s".join(parts)
-        cur = self.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        cur.execute(sql, params or ())
-        return _PgCursorAdapter(cur)
-    def executescript(self, script):
-        # Partimos por ; y ejecutamos cada sentencia no vacía
-        with self.conn:
-            cur = self.conn.cursor()
-            for stmt in script.split(";"):
-                stmt = stmt.strip()
-                if stmt:
-                    cur.execute(stmt)
-    def commit(self):
-        self.conn.commit()
-    def close(self):
-        self.conn.close()
-
-# ---------- Conexión ----------
-def _connect_sqlite(path):
+def _connect_sqlite(path: str):
     conn = sqlite3.connect(path)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON;")
     return conn
 
-def _connect_postgres(dsn):
-    # dsn: postgres://user:pass@host:port/dbname
-    conn = psycopg2.connect(dsn)  # Render ya trae sslmode en la URL
-    return _PgConnAdapter(conn)
+def _connect_postgres(dsn: str):
+    # Se importa acá para no requerir psycopg2 en local si no hace falta
+    import psycopg2
+    import psycopg2.extras
+
+    class _PgCursorAdapter:
+        def __init__(self, cur): self._cur = cur
+        def fetchall(self): return self._cur.fetchall()
+        def fetchone(self): return self._cur.fetchone()
+
+    class _PgConnAdapter:
+        def __init__(self, conn): self.conn = conn
+        def execute(self, sql, params=()):
+            # Cambiamos placeholders SQLite (?) -> Postgres (%s) si hace falta
+            if "%s" not in sql:
+                sql = "%s".join(sql.split("?"))
+            cur = self.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cur.execute(sql, params or ())
+            return _PgCursorAdapter(cur)
+        def executescript(self, script: str):
+            with self.conn:
+                cur = self.conn.cursor()
+                for stmt in script.split(";"):
+                    stmt = stmt.strip()
+                    if stmt:
+                        cur.execute(stmt)
+        def commit(self): self.conn.commit()
+        def close(self): self.conn.close()
+
+    return _PgConnAdapter(psycopg2.connect(dsn))
 
 def get_db():
+    """Devuelve la conexión activa y setea g.db_kind = 'pg' | 'sqlite'."""
     if "db" not in g:
         durl = os.environ.get("DATABASE_URL")
-        if durl and PG_AVAILABLE:
+        if durl:
+            # Si hay DATABASE_URL, usamos Postgres sí o sí (persistente en Render)
             g.db = _connect_postgres(durl)
             g.db_kind = "pg"
         else:
@@ -77,12 +57,12 @@ def get_db():
 def close_db(_exc=None):
     db = g.pop("db", None)
     if db is not None:
-        # sqlite3.Connection y _PgConnAdapter comparten estos métodos
         close_fn = getattr(db, "close", None)
         if callable(close_fn):
             close_fn()
 
-# ---------- Inicialización / Migración ----------
+# ========= Inicialización / Migraciones =========
+
 def init_db():
     db = get_db()
     kind = getattr(g, "db_kind", "sqlite")
@@ -156,13 +136,11 @@ def _init_sqlite(db):
         "ALTER TABLE stock_moves ADD COLUMN unit_price_cents INTEGER;"
     ]:
         try:
-            db.execute(ddl)
-            db.commit()
+            db.execute(ddl); db.commit()
         except Exception:
             pass
 
 def _init_postgres(db):
-    # Versiones para Postgres (SERIAL, NOW(), BOOLEAN/INTEGER iguales)
     db.executescript(
         """
         CREATE TABLE IF NOT EXISTS brands (
@@ -215,19 +193,18 @@ def _init_postgres(db):
         );
         """
     )
-    # migraciones suaves (INTENTAR agregar columnas si faltan)
     for ddl in [
         "ALTER TABLE perfumes ADD COLUMN price_cents INTEGER NOT NULL DEFAULT 0",
         "ALTER TABLE stock_moves ADD COLUMN customer_id INTEGER REFERENCES clients(id) ON DELETE SET NULL",
         "ALTER TABLE stock_moves ADD COLUMN unit_price_cents INTEGER"
     ]:
         try:
-            db.execute(ddl)
-            db.commit()
+            db.execute(ddl); db.commit()
         except Exception:
             pass
 
-# ---------- Queries comunes ----------
+# ========= Queries =========
+
 def q_brands(db):
     return db.execute(
         "SELECT b.id, b.name, "
@@ -254,26 +231,19 @@ def q_perfume_list(db, filters=None, limit=None):
     params = []
     if filters:
         if filters.get("brand_id"):
-            where.append("p.brand_id = ?")
-            params.append(filters["brand_id"])
+            where.append("p.brand_id = ?"); params.append(filters["brand_id"])
         if filters.get("type_id"):
-            where.append("p.type_id = ?")
-            params.append(filters["type_id"])
+            where.append("p.type_id = ?"); params.append(filters["type_id"])
         if filters.get("size_id"):
-            where.append("p.size_id = ?")
-            params.append(filters["size_id"])
+            where.append("p.size_id = ?"); params.append(filters["size_id"])
         if filters.get("q"):
-            where.append("LOWER(p.name) LIKE ?")
-            params.append(f"%{filters['q'].lower()}%")
+            where.append("LOWER(p.name) LIKE ?"); params.append(f"%{filters['q'].lower()}%")
         if filters.get("barcode"):
-            where.append("p.barcode IS NOT NULL AND p.barcode LIKE ?")
-            params.append(f"%{filters['barcode']}%")
+            where.append("p.barcode IS NOT NULL AND p.barcode LIKE ?"); params.append(f"%{filters['barcode']}%")
         if filters.get("min_qty") is not None:
-            where.append("p.quantity >= ?")
-            params.append(filters["min_qty"])
+            where.append("p.quantity >= ?"); params.append(filters["min_qty"])
         if filters.get("max_qty") is not None:
-            where.append("p.quantity <= ?")
-            params.append(filters["max_qty"])
+            where.append("p.quantity <= ?"); params.append(filters["max_qty"])
 
     sql = (
         "SELECT p.id, p.name, p.barcode, p.quantity, p.price_cents, p.created_at, "
