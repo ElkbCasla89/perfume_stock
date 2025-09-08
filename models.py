@@ -21,29 +21,34 @@ def _connect_postgres(dsn: str):
 
     class _PgConnAdapter:
         def __init__(self, conn): self.conn = conn
-
         def execute(self, sql, params=()):
+            # Convertir placeholders SQLite (?) -> Postgres (%s) si hace falta
             if "%s" not in sql:
                 sql = "%s".join(sql.split("?"))
             cur = self.conn.cursor(row_factory=dict_row)
             cur.execute(sql, params or ())
             return _PgCursorAdapter(cur)
-
         def executescript(self, script: str):
-            # ❌ NO usar "with self.conn:" en psycopg v3: cierra la conexión.
+            # NO usar 'with self.conn:' (cierra la conexión en psycopg v3)
             cur = self.conn.cursor()
             for stmt in script.split(";"):
                 stmt = stmt.strip()
                 if stmt:
                     cur.execute(stmt)
-            self.conn.commit()   # commit explícito
+            # Con autocommit=True no hace falta, pero es inofensivo:
+            try: self.conn.commit()
+            except Exception: pass
             cur.close()
-
-        def commit(self): self.conn.commit()
+        def commit(self): 
+            try: self.conn.commit()
+            except Exception: pass
+        def rollback(self):
+            try: self.conn.rollback()
+            except Exception: pass
         def close(self): self.conn.close()
 
-    return _PgConnAdapter(psycopg.connect(dsn))
-
+    # 👉 Autocommit TRUE evita “transaction aborted” al ignorar migraciones
+    return _PgConnAdapter(psycopg.connect(dsn, autocommit=True))
 
 def get_db():
     """Devuelve la conexión activa y setea g.db_kind = 'pg' | 'sqlite'."""
@@ -137,12 +142,15 @@ def _init_sqlite(db):
     for ddl in [
         "ALTER TABLE perfumes ADD COLUMN price_cents INTEGER NOT NULL DEFAULT 0;",
         "ALTER TABLE stock_moves ADD COLUMN customer_id INTEGER;",
-        "ALTER TABLE stock_moves ADD COLUMN unit_price_cents INTEGER;"
+     "ALTER TABLE stock_moves ADD COLUMN unit_price_cents INTEGER;"
     ]:
-        try:
-            db.execute(ddl); db.commit()
-        except Exception:
-            pass
+     try:
+        db.execute(ddl); db.commit()
+     except Exception:
+        # 🚑 Si falla (columna existe, etc.), asegurate de limpiar la transacción
+        try: db.rollback()
+        except Exception: pass
+
 
 def _init_postgres(db):
     db.executescript(
@@ -205,7 +213,9 @@ def _init_postgres(db):
         try:
             db.execute(ddl); db.commit()
         except Exception:
-            pass
+            try: db.rollback()
+            except Exception: pass
+
 
 # ========= Queries =========
 
