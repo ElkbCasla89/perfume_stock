@@ -39,8 +39,9 @@
         <li class="nav-item"><a class="nav-link {% if request.endpoint and request.endpoint.startswith('perfumes.') %}fw-semibold text-warning{% endif %}" href="{{ url_for('perfumes.perfumes_page') }}">Perfumes</a></li>
         <li class="nav-item"><a class="nav-link {% if request.endpoint and request.endpoint.startswith('stock.') %}fw-semibold text-warning{% endif %}" href="{{ url_for('stock.stock_page') }}">Stock</a></li>
         <li class="nav-item"><a class="nav-link {% if request.endpoint and request.endpoint.startswith('moves.') %}fw-semibold text-warning{% endif %}" href="{{ url_for('moves.moves_page') }}">Movimientos</a></li>
-        <li class="nav-item"><a class="nav-link {% if request.endpoint and request.endpoint.startswith('admin.') %}fw-semibold text-warning{% endif %}" href="{{ url_for('admin.admin_page') }}">Admin</a></li>
+        <li class="nav-item"><a class="nav-link {% if request.endpoint and request.endpoint.startswith('admin.') %}fw-semibold text-warning{% endif %}" href="{{ url_for('admin.admin_page') }}">ABMs</a></li>
         <li class="nav-item"><a class="nav-link {% if request.endpoint and request.endpoint.startswith('clients.') %}fw-semibold text-warning{% endif %}" href="{{ url_for('clients.clients_page') }}">Clientes</a></li>
+        <li class="nav-item"><a class="nav-link {{ 'active' if request.path.startswith('/sql') }}" href="{{ url_for('sql.sql_page') }}">SQL</a></li>
       </ul>
     </div>
   </div>

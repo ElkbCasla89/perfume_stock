@@ -4,6 +4,7 @@ from models import init_db, close_db
 from routes import register_blueprints
 from flask import jsonify, g
 from models import get_db
+from routes.sql import bp as sql_bp
 
 def _money_filter(value):
     try:
@@ -17,6 +18,8 @@ def create_app():
     app.config.from_object(Config)
 
     register_blueprints(app)
+    
+    app.register_blueprint(sql_bp)
 
     @app.before_request
     def _ensure_db():

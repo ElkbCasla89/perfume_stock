@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row g-4">
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Consola SQL (protegida)</h5>
+        {% if not enabled %}
+          <div class="alert alert-warning">
+            La consola está deshabilitada. Definí la variable de entorno <code>SQL_CONSOLE_TOKEN</code> en el servicio y recargá.
+          </div>
+        {% endif %}
+        <form method="post" action="{{ url_for('sql.sql_run') }}">
+          <div class="mb-2">
+            <label class="form-label">Token</label>
+            <input class="form-control" name="token" placeholder="Ingresá tu token" {{ 'disabled' if not enabled }}>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">SQL</label>
+            <textarea class="form-control" name="sql" rows="8" spellcheck="false" {{ 'disabled' if not enabled }}>{{ sql or '' }}</textarea>
+            <div class="form-text">
+              <strong>Tips:</strong> Para ver resultados, usá un <code>SELECT</code> simple (sin <code>;</code>).<br>
+              Para correr varios statements (<code>INSERT/UPDATE/ALTER...</code>) separalos por <code>;</code>.
+            </div>
+          </div>
+          <div class="d-grid">
+            <button class="btn btn-outline-light" {{ 'disabled' if not enabled }}>Ejecutar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-body">
+        <h5 class="card-title">Resultado</h5>
+        {% if result and result.rows %}
+          <div class="table-responsive">
+            <table class="table table-sm align-middle">
+              <thead><tr>
+                {% for c in result.columns %}<th>{{ c }}</th>{% endfor %}
+              </tr></thead>
+              <tbody>
+                {% for r in result.rows %}
+                  <tr>
+                  {% for c in result.columns %}
+                    <td>{{ r[c] }}</td>
+                  {% endfor %}
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <div class="text-muted">Filas: {{ result.rowcount }}</div>
+        {% else %}
+          <p class="text-secondary mb-0">Sin resultados para mostrar.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
