@@ -2,15 +2,8 @@ from flask import Flask, redirect, url_for
 from config import Config
 from models import init_db, close_db
 from routes import register_blueprints
-
-@app.get("/debug/db")
-def debug_db():
-    db = get_db()  # fuerza la conexión
-    kind = getattr(g, "db_kind", "unknown")  # 'pg' o 'sqlite'
-    return jsonify({
-        "db_backend": kind,
-        "has_DATABASE_URL": bool(__import__("os").environ.get("DATABASE_URL"))
-    })
+from flask import jsonify, g
+from models import get_db
 
 def _money_filter(value):
     try:
@@ -36,6 +29,13 @@ def create_app():
     @app.route("/")
     def index():
         return redirect(url_for("dashboard.dashboard_page"))
+    
+    @app.get("/debug/db")
+    def debug_db():
+        db = get_db()  # fuerza la conexión
+        kind = getattr(g, "db_kind", "unknown")  # 'pg' o 'sqlite'
+        has_env = bool(__import__("os").environ.get("DATABASE_URL"))
+        return jsonify({"db_backend": kind, "has_DATABASE_URL": has_env})
 
     # utilidades Jinja
     app.jinja_env.globals.update(str=str)
