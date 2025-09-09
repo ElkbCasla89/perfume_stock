@@ -35,27 +35,25 @@
         <!-- Bloque Código / Precio / Cantidad (corregido) -->
           <div class="col-12">
             <div class="row g-3 align-items-end">
-              <div class="col-md-6">
+                          <!-- Código / Precio / Cantidad: versión simple y alineada -->
+              <div class="col-12">
                 <label class="form-label">Código de barras (opcional)</label>
                 <input class="form-control" name="barcode">
               </div>
 
-              <div class="row g-3 align-items-end">
-            <!-- tus col-md-4 con Precio y Cantidad -->
-            <div class="col-md-4">
-              <label class="form-label">Precio (unidad)</label>
-              <div class="input-group">
-                <span class="input-group-text">$</span>
-                <input type="number" inputmode="decimal" step="0.01" min="0"
-                      class="form-control" name="price" id="ep_price">
+              <div class="col-md-6">
+                <label class="form-label">Precio (u.)</label>
+                <div class="input-group">
+                  <span class="input-group-text">$</span>
+                  <input type="number" step="0.01" min="0" class="form-control" name="price" placeholder="0.00">
+                </div>
               </div>
-            </div>
-            <div class="col-md-4">
-              <label class="form-label">Cantidad</label>
-              <input type="number" min="0" class="form-control" name="quantity" id="ep_qty">
-              <div class="form-text mt-1 mb-0">Si cambia, se registra un “Ajuste manual”.</div>
-            </div>
-          </div>
+
+              <div class="col-md-6">
+                <label class="form-label">Cantidad inicial</label>
+                <input type="number" min="0" class="form-control" name="quantity" value="0">
+              </div>
+
 
             </div>
           </div>
@@ -172,18 +170,18 @@
             </div>
 
             <div class="row g-3 align-items-end">
-            <div class="col-md-4">
-              <label class="form-label">Precio (unidad)</label>
-              <div class="input-group">
-                <span class="input-group-text">$</span>
-                <input type="number" step="0.01" min="0" class="form-control" name="price" id="ep_price">
-              </div>
-            </div>
-            <div class="col-md-4">
-              <label class="form-label">Cantidad</label>
-              <input type="number" min="0" class="form-control" name="quantity" id="ep_qty">
-              <div class="form-text mt-1 mb-0">Si cambia, se registra un “Ajuste manual”.</div>
-            </div>
+            <div class="col-md-6">
+  <label class="form-label">Precio (unidad)</label>
+  <div class="input-group">
+    <span class="input-group-text">$</span>
+    <input type="number" step="0.01" min="0" class="form-control" name="price" id="ep_price">
+  </div>
+</div>
+<div class="col-md-6">
+  <label class="form-label">Cantidad</label>
+  <input type="number" min="0" class="form-control" name="quantity" id="ep_qty">
+</div>
+
           </div>
           </div>
           </div>
